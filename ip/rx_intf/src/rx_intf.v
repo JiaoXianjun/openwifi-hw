@@ -23,12 +23,17 @@
         parameter integer TSF_TIMER_WIDTH = 64 // according to 802.11 standard
 	)
 	(
+        // -------------debug purpose----------------
+        output wire trigger_out,
+        output wire trigger_out1,
+        // -------------debug purpose----------------
+
 	    // from ad9361_adc_pack
         input wire adc_clk,
-        //input wire adc_rst,
+        input wire adc_rst,
         input wire [(ADC_PACK_DATA_WIDTH-1) : 0] adc_data,
         //(* mark_debug = "true" *) input wire adc_sync,
-        (* mark_debug = "true" *) input wire adc_valid,
+        input wire adc_valid,
 
 	    // Ports to openofdm rx
         output wire [(2*IQ_DATA_WIDTH-1) : 0] sample,
@@ -45,10 +50,10 @@
 		input  wire fcs_ok,
 
 	    // interrupt to PS
-        (* mark_debug = "true" *) output wire rx_pkt_intr,
+        output wire rx_pkt_intr,
         
         // interrupt from xilixn axi dma
-        (* mark_debug = "true" *) input wire s2mm_intr,
+        input wire s2mm_intr,
         
         // for xpu
         input  wire mute_adc_out_to_bb, // in acc clock domain
@@ -121,7 +126,7 @@
     wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg8; 
     wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg9; // 
     wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg10; 
-    //wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg11; // 
+    wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg11; // 
     wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg12; // 
     wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg13; // 
     // wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg14; // 
@@ -151,72 +156,51 @@
 	wire  m00_axis_tlast_inner;
     wire  m00_axis_tlast_auto_recover;
 
-    wire [(ADC_PACK_DATA_WIDTH-1) : 0] ant_data_in;
-    wire [(ADC_PACK_DATA_WIDTH-1) : 0] ant_data_after_sel;
+    wire [(2*IQ_DATA_WIDTH-1) : 0] ant_data_after_sel;
 
     wire acc_ask_data_from_s_axis;
-    wire acc_ask_data_from_adc;
-    wire ddc_ask_data_from_adc;
-    (* mark_debug = "true" *) wire emptyn_from_adc_to_ddc;
 
-    (* mark_debug = "true" *) wire [(IQ_DATA_WIDTH-1) : 0] rf_i_to_acc;
+    wire [(IQ_DATA_WIDTH-1) : 0] rf_i_to_acc;
 	wire [(IQ_DATA_WIDTH-1) : 0] rf_q_to_acc;
-
-    wire ddc_bypass;
-    (* mark_debug = "true" *) wire ask_data_from_adc;
-    (* mark_debug = "true" *) wire ddc_bw20_iq_valid;
-	wire [(IQ_DATA_WIDTH-1):0] ddc_bw20_i0;
-    wire [(IQ_DATA_WIDTH-1):0] ddc_bw20_q0;
-    wire [(IQ_DATA_WIDTH-1):0] ddc_bw20_i1;
-    wire [(IQ_DATA_WIDTH-1):0] ddc_bw20_q1;
-	wire [(IQ_DATA_WIDTH-1):0] adc_bw20_i0;
-    wire [(IQ_DATA_WIDTH-1):0] adc_bw20_q0;
-    wire [(IQ_DATA_WIDTH-1):0] adc_bw20_i1;
-    wire [(IQ_DATA_WIDTH-1):0] adc_bw20_q1;
     
 	wire [(IQ_DATA_WIDTH-1):0] bw20_i0;
     wire [(IQ_DATA_WIDTH-1):0] bw20_q0;
-    wire [(IQ_DATA_WIDTH-1):0] bw20_i1;
-    wire [(IQ_DATA_WIDTH-1):0] bw20_q1;
     wire bw20_iq_valid;
-    wire [(IQ_DATA_WIDTH-1):0] bw02_i0;
-    wire [(IQ_DATA_WIDTH-1):0] bw02_q0;
-    wire [(IQ_DATA_WIDTH-1):0] bw02_i1;
-    wire [(IQ_DATA_WIDTH-1):0] bw02_q1;
-    wire bw02_iq_valid;
         
     wire [(C_S00_AXIS_TDATA_WIDTH-1):0] s_axis_data_to_acc;
     wire s_axis_emptyn_to_acc;
     wire [(MAX_BIT_NUM_DMA_SYMBOL-1) : 0] s_axis_fifo_data_count;
     
-    wire [(C_S00_AXIS_TDATA_WIDTH-1):0] rf_iq_loopback;
+    wire [(2*IQ_DATA_WIDTH-1) : 0] rf_iq_loopback;
     
-	(* mark_debug = "true" *) wire start_1trans_from_acc_to_m_axis;
-    (* mark_debug = "true" *) wire [(C_M00_AXIS_TDATA_WIDTH-1):0] data_from_acc_to_m_axis;
-    (* mark_debug = "true" *) wire data_ready_from_acc_to_m_axis;
-    (* mark_debug = "true" *) wire fulln_from_m_axis_to_acc;
-    (* mark_debug = "true" *) wire [MAX_BIT_NUM_DMA_SYMBOL-1 : 0] m_axis_fifo_data_count;
+	wire start_1trans_from_acc_to_m_axis;
+    wire [(C_M00_AXIS_TDATA_WIDTH-1):0] data_from_acc_to_m_axis;
+    wire data_ready_from_acc_to_m_axis;
+    wire fulln_from_m_axis_to_acc;
+    wire [MAX_BIT_NUM_DMA_SYMBOL-1 : 0] m_axis_fifo_data_count;
     wire fcs_valid_internal;
     wire rx_pkt_intr_internal;
     wire intr_internal;
     
-    (* mark_debug = "true" *) wire wifi_rx_iq_fifo_emptyn;
+    wire wifi_rx_iq_fifo_emptyn;
     
     //wire [(MAX_BIT_NUM_DMA_SYMBOL-1) : 0] monitor_num_dma_symbol_to_pl;
     wire [(MAX_BIT_NUM_DMA_SYMBOL-1) : 0] monitor_num_dma_symbol_to_ps;
     wire [(MAX_BIT_NUM_DMA_SYMBOL-1) : 0] num_dma_symbol_to_pl;
-    (* mark_debug = "true" *) wire [(MAX_BIT_NUM_DMA_SYMBOL-1) : 0] num_dma_symbol_to_ps;
+    wire [(MAX_BIT_NUM_DMA_SYMBOL-1) : 0] num_dma_symbol_to_ps;
 
     //wire fcs_invalid_from_acc_delay;
-    (* mark_debug = "true" *) wire m_axis_auto_rst;
+    wire m_axis_auto_rst;
     wire m_axis_rst;
     wire enable_m_axis_auto_rst;
     
+    wire ant_flag_in_rf_domain;
     wire mute_adc_out_to_bb_in_rf_domain;
-    wire [(ADC_PACK_DATA_WIDTH-1) : 0] adc_data_internal;
+    wire [(2*IQ_DATA_WIDTH-1) : 0] adc_data_internal;
+    wire [(2*IQ_DATA_WIDTH-1) : 0] adc_data_after_sel;
 
-    (* mark_debug = "true" *) wire [(C_M00_AXIS_TDATA_WIDTH-1) : 0] data_from_acc;
-	(* mark_debug = "true" *) wire data_ready_from_acc;
+    wire [(C_M00_AXIS_TDATA_WIDTH-1) : 0] data_from_acc;
+	wire data_ready_from_acc;
 
     wire fcs_valid;
     wire fcs_invalid;
@@ -224,6 +208,12 @@
     wire sig_invalid;
 
     wire rx_pkt_sn_plus_one;
+
+    // -------------debug purpose----------------
+    wire trigger_out_internal = 1;
+    assign trigger_out1 = slv_reg1[4];
+    assign trigger_out = (slv_reg1[0]&trigger_out_internal);
+    // -------------debug purpose----------------
 
     assign sample = {rf_i_to_acc,rf_q_to_acc};
     assign fcs_valid = (fcs_in_strobe&fcs_ok);
@@ -251,21 +241,12 @@
 
     assign enable_m_axis_auto_rst = slv_reg5[16];
     assign m_axis_auto_rst = (m_axis_rst&enable_m_axis_auto_rst);
-
-    assign adc_bw20_i0 = ant_data_after_sel[15:0];
-    assign adc_bw20_q0 = ant_data_after_sel[31:16];
-    assign adc_bw20_i1 = ant_data_after_sel[47:32];
-    assign adc_bw20_q1 = ant_data_after_sel[63:48];
   
-    assign ddc_bypass = slv_reg10[4];
-    assign ask_data_from_adc = (ddc_bypass? acc_ask_data_from_adc : ddc_ask_data_from_adc);
-    assign bw20_iq_valid     = (ddc_bypass?emptyn_from_adc_to_ddc : ddc_bw20_iq_valid);
-    assign bw20_i0           = (ddc_bypass?           adc_bw20_i0 : ddc_bw20_i0);
-    assign bw20_q0           = (ddc_bypass?           adc_bw20_q0 : ddc_bw20_q0);
-    assign bw20_i1           = (ddc_bypass?           adc_bw20_i1 : ddc_bw20_i1);
-    assign bw20_q1           = (ddc_bypass?           adc_bw20_q1 : ddc_bw20_q1);
-    
-    assign adc_data_internal = (mute_adc_out_to_bb_in_rf_domain?0:adc_data);
+    assign adc_data_after_sel = (ant_flag_in_rf_domain?adc_data[(ADC_PACK_DATA_WIDTH-1) : (2*IQ_DATA_WIDTH)]:adc_data[(2*IQ_DATA_WIDTH-1) : 0]);
+    assign adc_data_internal  = (mute_adc_out_to_bb_in_rf_domain?0:adc_data_after_sel);
+
+    assign bw20_i0 = ant_data_after_sel[  (IQ_DATA_WIDTH-1) : 0];
+    assign bw20_q0 = ant_data_after_sel[(2*IQ_DATA_WIDTH-1) : IQ_DATA_WIDTH];
     
 // ---------------------------fro mute_adc_out_to_bb control from acc domain to adc domain-------------------------------------
     xpm_cdc_array_single #(
@@ -282,48 +263,36 @@
       .dest_out (mute_adc_out_to_bb_in_rf_domain)
     );
 
+// ---------------------------fro antenna selection from acc domain to adc domain-------------------------------------
+    xpm_cdc_array_single #(
+      //Common module parameters
+      .DEST_SYNC_FF   (4), // integer; range: 2-10
+      .INIT_SYNC_FF   (0), // integer; 0=disable simulation init values, 1=enable simulation init values
+      .SIM_ASSERT_CHK (0), // integer; 0=disable simulation messages, 1=enable simulation messages
+      .SRC_INPUT_REG  (1), // integer; 0=do not register input, 1=register input
+      .WIDTH          (1)  // integer; range: 1-1024
+    ) xpm_cdc_array_single_inst_ant_flag (
+      .src_clk  (s00_axi_aclk),  // optional; required when SRC_INPUT_REG = 1
+      .src_in   (slv_reg16[0]),
+      .dest_clk (adc_clk),
+      .dest_out (ant_flag_in_rf_domain)
+    );
+
     adc_intf # (
-        .ADC_PACK_DATA_WIDTH(ADC_PACK_DATA_WIDTH)
+        .IQ_DATA_WIDTH(IQ_DATA_WIDTH)        
     ) adc_intf_i (
-        //.adc_rst(adc_rst|slv_reg0[0]),
+        .adc_rst(adc_rst),
         .adc_clk(adc_clk),
         .adc_data(adc_data_internal),
         //.adc_sync(adc_sync),
         .adc_valid(adc_valid),
         .acc_clk(s00_axis_aclk),
         .acc_rstn(s00_axis_aresetn&(~slv_reg0[5])),
-        .data_to_acc(ant_data_in),
-        .emptyn_to_acc(emptyn_from_adc_to_ddc),
-        .acc_ask_data(ask_data_from_adc&(~slv_reg10[1]))
-    );
-    
-    rx_intf_ant_selection # (
-        .ADC_PACK_DATA_WIDTH(ADC_PACK_DATA_WIDTH)
-    ) rx_intf_ant_selection_i (
-        .data_in(ant_data_in),
-        .ant_flag(slv_reg16[1:0]),
-        .data_out(ant_data_after_sel)
-    );
-    
-    ddc_bank_core_intf # (
-    ) ddc_bank_core_intf_i (
-        .cfg0(slv_reg1),
-        .clk(s00_axis_aclk),
-        .iq_rd_data(ant_data_after_sel),
-        .iq_rd_en(ddc_ask_data_from_adc),
-        .iq_empty_n(emptyn_from_adc_to_ddc),
-        .rstn(s00_axis_aresetn&(~slv_reg0[1])),
-        .bw20_data_tvalid(ddc_bw20_iq_valid),
-//        .gain_cfg(slv_reg10[9:8]),
-        .bw20_i0(ddc_bw20_i0),
-        .bw20_q0(ddc_bw20_q0),
-        .bw20_i1(ddc_bw20_i1),
-        .bw20_q1(ddc_bw20_q1),
-        .bw02_i0(bw02_i0),
-        .bw02_q0(bw02_q0),
-        .bw02_i1(bw02_i1),
-        .bw02_q1(bw02_q1),
-        .bw02_data_tvalid(bw02_iq_valid)
+
+        .bb_gain(slv_reg11[2:0]), // number of bit shift to left
+        .data_to_acc(ant_data_after_sel),
+        .emptyn_to_acc(bw20_iq_valid),
+        .acc_ask_data(1'b1&(~slv_reg10[1]))
     );
 
 // Instantiation of Axi Bus Interface S00_AXI
@@ -364,7 +333,7 @@
 		.SLV_REG8(slv_reg8),
         .SLV_REG9(slv_reg9),
         .SLV_REG10(slv_reg10),
-        //.SLV_REG11(slv_reg11),
+        .SLV_REG11(slv_reg11),
         .SLV_REG12(slv_reg12),
         .SLV_REG13(slv_reg13),
         //.SLV_REG14(slv_reg14),
@@ -413,24 +382,21 @@
         .C_S00_AXIS_TDATA_WIDTH(C_S00_AXIS_TDATA_WIDTH),
         .IQ_DATA_WIDTH(IQ_DATA_WIDTH)
     ) rx_iq_intf_i (
+        // ----------- debug purpose ---------------
+        //.trigger_out(trigger_out_internal),
+        // ----------- debug purpose ---------------
+
         .rstn(s00_axis_aresetn&(~slv_reg0[3])),
         .clk(s00_axis_aclk),
         .bw20_i0(bw20_i0),
         .bw20_q0(bw20_q0),
-        .bw20_i1(bw20_i1),
-        .bw20_q1(bw20_q1),
         .bw20_iq_valid(bw20_iq_valid),
-        .bw02_i0(bw02_i0),
-        .bw02_q0(bw02_q0),
-        .bw02_i1(bw02_i1),
-        .bw02_q1(bw02_q1),
-        .bw02_iq_valid(bw02_iq_valid),
         .data_from_s_axis(s_axis_data_to_acc),
         .emptyn_from_s_axis(s_axis_emptyn_to_acc),
         .ask_data_from_s_axis(acc_ask_data_from_s_axis),
-        .ask_data_from_adc(acc_ask_data_from_adc),
+//        .ask_data_from_adc(),
         .fifo_in_sel(slv_reg3[2:0]),
-        .fifo_out_sel(slv_reg3[3]),
+//        .fifo_out_sel(slv_reg3[3]),
         .ask_data_from_s_axis_en(~slv_reg4[0]),
         .fifo_in_en(~slv_reg4[1]),
         .fifo_out_en(~slv_reg4[2]),
