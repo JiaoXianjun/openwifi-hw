@@ -43,6 +43,10 @@ connect_debug_port u_ila_0/probe0 [get_nets [list {i_system_wrapper/system_i/ope
 connect_debug_port u_ila_0/probe5 [get_nets [list i_system_wrapper/system_i/openwifi_ip/xpu_0/inst/tx_on_detection_i/pulse_tx_bb_end]]
 connect_debug_port u_ila_0/probe6 [get_nets [list i_system_wrapper/system_i/openwifi_ip/xpu_0/inst/tx_on_detection_i/pulse_tx_bb_start]]
 
+
+
+
+
 create_debug_core u_ila_0 ila
 set_property ALL_PROBE_SAME_MU true [get_debug_cores u_ila_0]
 set_property ALL_PROBE_SAME_MU_CNT 1 [get_debug_cores u_ila_0]
