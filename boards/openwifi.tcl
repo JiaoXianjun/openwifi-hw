@@ -105,6 +105,8 @@ set orig_proj_dir "[file normalize "$origin_dir/"]"
 # Create project
 create_project ${_xil_proj_name_} ./${_xil_proj_name_} -part $part_string
 
+# === Segmented Configuration (Vivado 2024.2+) ===
+#set_property CONFIG.SEQUENTIAL_CONFIG TRUE [current_design]
 # Set the directory path for the new project
 set proj_dir [get_property directory [current_project]]
 
@@ -112,7 +114,7 @@ set proj_dir [get_property directory [current_project]]
 set obj [current_project]
 set_property -name "board_part_repo_paths" -value "$board_part_repos" -objects $obj
 set_property -name "board_part" -value "$board_part_string" -objects $obj
-set_property -name "classic_soc_boot" -value "0" -objects $obj
+#set_property -name "classic_soc_boot" -value "0" -objects $obj
 set_property -name "compxlib.activehdl_compiled_library_dir" -value "$proj_dir/${_xil_proj_name_}.cache/compile_simlib/activehdl" -objects $obj
 set_property -name "compxlib.funcsim" -value "1" -objects $obj
 set_property -name "compxlib.ies_compiled_library_dir" -value "$proj_dir/${_xil_proj_name_}.cache/compile_simlib/ies" -objects $obj
@@ -299,13 +301,48 @@ set_property -name "xsim.simulate.xsim.more_options" -value "" -objects $obj
 source ./synth_impl_strategy.tcl
 source ./../post_script_common.tcl
 
-# https://adaptivesupport.amd.com/s/article/000034290?language=en_US
+# https://adaptivesupport.amd.com/s/article/000034290
 set_param gui.addressMap 0
 
+# Porządek plików
 update_compile_order -fileset sources_1
-launch_runs impl_1 -to_step write_bitstream -jobs 8
 
+# === IMPLEMENTACJA ===
+launch_runs impl_1 -to_step write_bitstream -jobs 8
 wait_on_run impl_1
 
+# Otwórz zaimplementowany design
+open_run impl_1
+#set des [get_runs impl_1]
+#
+#set des [get_designs -of_objects [current_run]]
+#
+#set des [current_design]
+
+
+# === SEGMENTED CONFIGURATION ===
+#set_property BITSTREAM.CONFIG.SEGMENTED TRUE [current_design]
+#set_property CONFIG.SEQUENTIAL_CONFIG TRUE [get_property DESIGN [lindex $des 0]]
+#set_property CONFIG_MODE SPIx4 [get_property DESIGN [lindex $des 0]]
+
+#set_property CONFIG.SEQUENTIAL_CONFIG TRUE $des
+#set_property CONFIG_MODE SPIx4 $des
+
+# === BITSTREAM ===
+write_bitstream -force system.bit
+
 update_compile_order -fileset sources_1
+
+# === XSA z segmentami ===
+
+#write_hw_platform -fixed -include_bit -force -file /dysk/PETA_2025_1/open-sdr/openwifi-hw/boards/adrv9361z7035/openwifi_adrv9361z7035/system_top.xsa
+
+
 write_hw_platform -fixed -include_bit -force -file ./openwifi_$BOARD_NAME/system_top.xsa
+
+
+#write_hw_platform \
+ # -fixed \
+  #-include_bit \
+  #-force \
+  #./openwifi_$BOARD_NAME/system_top.xsa
